@@ -735,6 +735,7 @@ function renderNow(loc, data, region, tz) {
         ${data.order.map((id) => SOURCES.find((s) => s.id === id)).filter((s) => cur[s.id]).map((s) => `<span class="${s.id === mainId ? 'primary' : ''}">${srcTag(s)} ${fmtTemp(cur[s.id]?.temp)}</span>`).join('')}
       </div>
       <div class="agree">${agree}</div>
+      <p class="credit">Data: <a href="https://opendata.chmi.cz/" rel="noopener">ČHMÚ</a> · <a href="https://www.met.no/en" rel="noopener">MET Norway</a> · <a href="https://open-meteo.com/" rel="noopener">Weather data by Open-Meteo.com</a></p>
     ` : '<p class="error">Aktuální data se nepodařilo načíst.</p>'}
   `;
 }
@@ -1124,12 +1125,18 @@ function initRadar() {
     zoomControl: true,
     scrollWheelZoom: false,
     dragging: !L.Browser.mobile, // na mobilu jedním prstem rolovat stránku, dvěma prsty mapu
-    attributionControl: false,
+    attributionControl: true, // podmínky OSM: atribuce musí být vidět přímo na mapě
     minZoom: 4,
     maxZoom: 10,
   });
+  radar.map.attributionControl.setPrefix(false);
+  radar.map.attributionControl.addAttribution('Radar <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>');
   radar.map.setView([49.8, 15.5], 6); // celé Česko, než se vybere místo
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, className: 'basemap' }).addTo(radar.map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    className: 'basemap',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors',
+  }).addTo(radar.map);
 
   $('#radar-slider').addEventListener('input', (e) => { stopRadar(); showFrame(Number(e.target.value)); });
   $('#radar-play').addEventListener('click', () => (radar.timer ? stopRadar() : playRadar()));
@@ -1271,7 +1278,13 @@ function setupGeo() {
     if (!navigator.geolocation) { alert('Tento prohlížeč neumí zjistit polohu.'); return; }
     $('#now').innerHTML = '<p class="muted">Zjišťuji polohu…</p>';
     navigator.geolocation.getCurrentPosition(
-      (pos) => show({ name: 'Moje poloha', lat: pos.coords.latitude, lon: pos.coords.longitude, geo: true }),
+      // Poloha zaokrouhlená na ~100 m: stačí pro předpověď, šetří soukromí a MET Norway
+      // povoluje nejvýš 4 desetinná místa (kvůli cache)
+      (pos) => show({
+        name: 'Moje poloha', geo: true,
+        lat: Math.round(pos.coords.latitude * 1000) / 1000,
+        lon: Math.round(pos.coords.longitude * 1000) / 1000,
+      }),
       () => { $('#now').innerHTML = '<p class="error">Polohu se nepodařilo zjistit. Povol ji v prohlížeči, nebo vyber město.</p>'; },
       { enableHighAccuracy: false, timeout: 15000, maximumAge: 10 * 60e3 },
     );

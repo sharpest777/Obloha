@@ -41,6 +41,7 @@
         <span><i class="bar"></i><span id="rain-legend">srážky</span></span>
       </div>
       <div id="chart" class="chart"></div>
+      <p class="credit">Data: <a href="https://opendata.chmi.cz/" rel="noopener">ČHMÚ</a> · <a href="https://www.met.no/en" rel="noopener">MET Norway</a> · <a href="https://open-meteo.com/" rel="noopener">Weather data by Open-Meteo.com</a></p>
     </section>
 
     <section class="card">
@@ -51,6 +52,7 @@
         <span><i class="bar"></i>srážky za den</span>
       </div>
       <div id="days" class="chart days-chart"></div>
+      <p class="credit">Data: <a href="https://opendata.chmi.cz/" rel="noopener">ČHMÚ</a> · <a href="https://www.met.no/en" rel="noopener">MET Norway</a> · <a href="https://open-meteo.com/" rel="noopener">Weather data by Open-Meteo.com</a></p>
     </section>
 
     <section class="card">
@@ -61,21 +63,30 @@
         <input type="range" id="radar-slider" min="0" max="0" value="0" aria-label="Čas snímku">
         <span id="radar-time" class="radar-time"></span>
       </div>
-      <p class="radar-note muted">Poslední zhruba 2 hodiny po 10 minutách. Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>, mapa © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>.</p>
+      <p class="radar-note muted">Poslední zhruba 2 hodiny po 10 minutách. Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>.</p>
     </section>
 
     <section class="card">
       <h2>Textová předpověď ČHMÚ</h2>
       <div id="chmi"></div>
+      <p class="credit">Zdroj: <a href="https://opendata.chmi.cz/" rel="noopener">ČHMÚ – otevřená data</a>, <a href="https://creativecommons.org/licenses/by/4.0/deed.cs" rel="noopener">CC BY 4.0</a>. Text je převzatý beze změn, jen jsou zvýrazněná čísla.</p>
     </section>
   </main>
 
   <footer class="foot">
-    <p>
-      Data: <a href="https://www.met.no/" rel="noopener">MET Norway (yr.no)</a>,
-      modely ICON a ECMWF přes <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0),
-      model ALADIN a textová předpověď <a href="https://opendata.chmi.cz/" rel="noopener">ČHMÚ – otevřená data</a>.
-    </p>
+    <p><strong>Zdroje dat a licence</strong></p>
+    <ul class="sources">
+      <li><strong>NOR:</strong> Data from <a href="https://www.met.no/en" rel="noopener">MET Norway</a> (Norský meteorologický ústav),
+        licence <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">CC BY 4.0</a> a <a href="https://data.norge.no/nlod/en/2.0" rel="noopener">NLOD 2.0</a>.</li>
+      <li><strong>GER, EU</strong>, UV index a pocitová teplota: <a href="https://open-meteo.com/" rel="noopener">Weather data by Open-Meteo.com</a>
+        (modely DWD ICON a ECMWF IFS), licence <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">CC BY 4.0</a>; vyhledávání míst Open-Meteo Geocoding.</li>
+      <li><strong>CZ</strong> a textová předpověď: <a href="https://opendata.chmi.cz/" rel="noopener">ČHMÚ – otevřená data</a>,
+        licence <a href="https://creativecommons.org/licenses/by/4.0/deed.cs" rel="noopener">CC BY 4.0</a>.</li>
+      <li><strong>Radar:</strong> <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>.
+        <strong>Mapa:</strong> © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors.</li>
+    </ul>
+    <p>Data jsou v aplikaci upravena: průměrování zdrojů, převod na hodinové a denní součty, zaokrouhlení
+      a model ALADIN je zjednodušen na body okresních měst. Aplikace není dílem ani doporučením uvedených institucí.</p>
     <p><button type="button" id="refresh" class="link">Obnovit data</button> · <span id="updated"></span></p>
   </footer>
 
