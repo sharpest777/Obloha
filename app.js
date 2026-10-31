@@ -1107,14 +1107,22 @@ function renderChmi(chmi, region, error) {
   `;
 }
 
-// ---------- Radar (RainViewer) ----------
+// ---------- Radar (ČHMÚ) ----------
+
+// Radarový kompozit ČHMÚ: průhledné PNG 680 × 460 px v projekci webových map (Web Mercator)
+// přes oblast 11,27–20,77° v. d. a 48,05–52,17° s. š. Snímky jsou každých 5 minut (čas v UTC).
+// Nahoře a vpravo mají obrázky boční průměty a popisek – ty se ořezávají (CSS clip-path v styles.css).
+const CHMI_RADAR = {
+  base: 'https://opendata.chmi.cz/meteorology/weather/radar/composite/maxz/png/pacz2gmaps3.z_max3d.',
+  bounds: [[48.0475, 11.2673], [52.1667, 20.7703]],
+  step: 10, // minut mezi snímky animace
+  frames: 13, // poslední 2 hodiny
+};
 
 const radar = {
   map: null,
   marker: null,
-  host: '',
-  frames: [],
-  layers: [], // vrstva pro každý snímek, vytváří se až při prvním zobrazení
+  frames: [], // { time, layer, ok }
   index: 0,
   timer: null,
 };
@@ -1126,12 +1134,12 @@ function initRadar() {
     scrollWheelZoom: false,
     dragging: !L.Browser.mobile, // na mobilu jedním prstem rolovat stránku, dvěma prsty mapu
     attributionControl: true, // podmínky OSM: atribuce musí být vidět přímo na mapě
-    minZoom: 4,
+    minZoom: 5,
     maxZoom: 10,
   });
   radar.map.attributionControl.setPrefix(false);
-  radar.map.attributionControl.addAttribution('Radar <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>');
-  radar.map.setView([49.8, 15.5], 6); // celé Česko, než se vybere místo
+  radar.map.attributionControl.addAttribution('Radar <a href="https://opendata.chmi.cz/" rel="noopener">ČHMÚ</a>');
+  radar.map.setView([49.8, 15.5], 7); // celé Česko, než se vybere místo
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     className: 'basemap',
@@ -1142,41 +1150,49 @@ function initRadar() {
   $('#radar-play').addEventListener('click', () => (radar.timer ? stopRadar() : playRadar()));
 }
 
+const pad2 = (n) => String(n).padStart(2, '0');
+const chmiRadarUrl = (t) => {
+  const d = new Date(t);
+  return `${CHMI_RADAR.base}${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}.${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}.0.png`;
+};
+const imageExists = (url) => new Promise((resolve) => {
+  const img = new Image();
+  img.onload = () => resolve(true);
+  img.onerror = () => resolve(false);
+  img.src = url;
+});
+
+// Najde nejnovější zveřejněný snímek (ČHMÚ ho vydá pár minut po měření) a připraví animaci
 async function loadRadarFrames() {
   if (!radar.map) return;
-  try {
-    const data = await getJson('https://api.rainviewer.com/public/weather-maps.json');
-    radar.layers.forEach((l) => l && radar.map.removeLayer(l));
-    radar.host = data.host;
-    radar.frames = [...(data.radar?.past || []), ...(data.radar?.nowcast || [])];
-    radar.layers = radar.frames.map(() => null);
-    $('#radar-slider').max = String(Math.max(0, radar.frames.length - 1));
-    showFrame((data.radar?.past?.length || 1) - 1); // poslední naměřený snímek
-  } catch {
-    $('#radar-time').textContent = 'radar nedostupný';
+  const step5 = 5 * 60e3;
+  let latest = null;
+  for (let k = 1; k <= 8 && latest == null; k++) {
+    const t = Math.floor(Date.now() / step5) * step5 - k * step5;
+    if (await imageExists(chmiRadarUrl(t))) latest = t;
   }
-}
+  radar.frames.forEach((f) => radar.map.removeLayer(f.layer));
+  radar.frames = [];
+  if (latest == null) { $('#radar-time').textContent = 'radar nedostupný'; return; }
 
-function radarLayer(i) {
-  if (!radar.layers[i]) {
-    // Barevné schéma 2, bez vyhlazení (0) – skvrny jsou přesně tam, kde je radar naměřil, sníh odlišen (1).
-    // RainViewer má radar jen do zoomu 7, víc se dopočítá zvětšením.
-    radar.layers[i] = L.tileLayer(`${radar.host}${radar.frames[i].path}/256/{z}/{x}/{y}/2/0_1.png`, {
-      opacity: 0, maxNativeZoom: 7, maxZoom: 10, zIndex: 10,
-    }).addTo(radar.map);
+  for (let i = CHMI_RADAR.frames - 1; i >= 0; i--) {
+    const time = latest - i * CHMI_RADAR.step * 60e3;
+    const frame = { time, ok: true };
+    frame.layer = L.imageOverlay(chmiRadarUrl(time), CHMI_RADAR.bounds, { opacity: 0, className: 'chmi-radar', zIndex: 10 })
+      .on('error', () => { frame.ok = false; })
+      .addTo(radar.map);
+    radar.frames.push(frame);
   }
-  return radar.layers[i];
+  $('#radar-slider').max = String(radar.frames.length - 1);
+  showFrame(radar.frames.length - 1);
 }
 
 function showFrame(i) {
   if (!radar.frames.length) return;
   radar.index = i;
-  radar.layers.forEach((l, j) => l && j !== i && l.setOpacity(0));
-  radarLayer(i).setOpacity(0.75);
-  radarLayer((i + 1) % radar.frames.length); // dopředu načíst další snímek animace
+  radar.frames.forEach((f, j) => f.layer.setOpacity(j === i && f.ok ? 0.85 : 0));
   $('#radar-slider').value = String(i);
-  const t = new Date(radar.frames[i].time * 1000);
-  $('#radar-time').textContent = t.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' });
+  $('#radar-time').textContent = new Date(radar.frames[i].time).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' });
 }
 
 function playRadar() {
@@ -1194,10 +1210,11 @@ function stopRadar() {
 
 function moveRadar(loc) {
   if (!radar.map) return;
-  radar.map.setView([loc.lat, loc.lon], 7);
+  radar.map.setView([loc.lat, loc.lon], window.innerWidth < 500 ? 7 : 8); // na mobilu víc okolí
   if (radar.marker) radar.marker.setLatLng([loc.lat, loc.lon]);
   else radar.marker = L.circleMarker([loc.lat, loc.lon], { radius: 6, color: '#fff', weight: 2, fillColor: '#ef4444', fillOpacity: 1 }).addTo(radar.map);
 }
+
 
 // ---------- Hlavní logika ----------
 
